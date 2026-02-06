@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal AI Interface | Gemini Clone</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            750: '#2d3748',
+                            850: '#1a202c',
+                            950: '#0d1117',
+                        },
+                        ai: {
+                            primary: '#3b82f6',
+                            accent: '#8b5cf6'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a202c; }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+
+        /* Markdown Styles */
+        .prose pre { background-color: #0d1117; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; }
+        .prose code { color: #e2e8f0; background: #2d3748; padding: 0.2em 0.4em; border-radius: 0.25rem; }
+        .prose pre code { background: transparent; padding: 0; color: inherit; }
+        .prose p { margin-bottom: 1rem; line-height: 1.6; }
+        .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .prose ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        
+        /* Loading Gradient */
+        .loading-gradient {
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%);
+            background-size: 200% 100%;
+            animation: gradientMove 2s linear infinite;
+        }
+        @keyframes gradientMove { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+        .hidden-scrollbar::-webkit-scrollbar { display: none; }
+        .hidden-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex overflow-hidden">
+
+    <aside id="sidebar" class="w-64 bg-gray-950 flex flex-col border-r border-gray-800 transition-all duration-300 absolute z-20 h-full md:relative md:translate-x-0 -translate-x-full">
+        <div class="p-4 flex items-center justify-between">
+            <button onclick="createNewChat()" class="flex-1 flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-3 rounded-xl transition-colors shadow-sm border border-gray-700">
+                <i class="fas fa-plus text-ai-primary"></i>
+                <span class="font-medium">New Chat</span>
+            </button>
+            <button onclick="toggleSidebar()" class="md:hidden ml-2 text-gray-400 p-2"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="px-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent</div>
+        
+        <div id="chat-history" class="flex-1 overflow-y-auto px-2 space-y-1 hidden-scrollbar">
+            </div>
+
+        <div class="p-4 border-t border-gray-800">
+            <button onclick="openSettings()" class="flex items-center gap-3 w-full p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative bg-gray-900">
+        
+        <header class="h-14 flex items-center justify-between px-4 border-b border-gray-800 bg-gray-900/95 backdrop-blur z-10">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white"><i class="fas fa-bars"></i></button>
+                <div class="flex items-center gap-2 cursor-pointer" onclick="openSettings()">
+                    <span class="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Universal AI</span>
+                    <span id="current-model-display" class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded border border-gray-700">google/gemini-2.0-flash-exp:free</span>
+                    <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                 <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold">U</div>
+            </div>
+        </header>
+
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
+            <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center opacity-100 transition-opacity duration-300">
+                <div class="mb-6 text-5xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 loading-gradient py-2">
+                    Hello, Human.
+                </div>
+                <p class="text-gray-400 text-lg mb-8">How can I help you today?</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                    <button onclick="setInput('Explain quantum computing like I am 5')" class="p-4 bg-gray-800 hover:bg-gray-750 rounded-xl border border-gray-700 text-left transition-all">
+                        <i class="fas fa-microchip text-purple-400 mb-2"></i>
+                        <div class="text-sm font-medium">Explain quantum computing</div>
+                    </button>
+                    <button onclick="setInput('Write a python script to scrape a website')" class="p-4 bg-gray-800 hover:bg-gray-750 rounded-xl border border-gray-700 text-left transition-all">
+                        <i class="fas fa-code text-blue-400 mb-2"></i>
+                        <div class="text-sm font-medium">Write a Python script</div>
+                    </button>
+                    <button onclick="setInput('Generate an image of a futuristic cyberpunk city')" class="p-4 bg-gray-800 hover:bg-gray-750 rounded-xl border border-gray-700 text-left transition-all">
+                         <i class="fas fa-image text-green-400 mb-2"></i>
+                        <div class="text-sm font-medium">Generate an image</div>
+                    </button>
+                     <button onclick="setInput('Draft a professional email for a job application')" class="p-4 bg-gray-800 hover:bg-gray-750 rounded-xl border border-gray-700 text-left transition-all">
+                        <i class="fas fa-envelope text-yellow-400 mb-2"></i>
+                        <div class="text-sm font-medium">Draft a professional email</div>
+                    </button>
+                </div>
+            </div>
+
+            <div id="messages-area" class="max-w-3xl mx-auto space-y-6 pb-4 hidden"></div>
+            
+            <div id="loading-indicator" class="hidden max-w-3xl mx-auto mt-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0 flex items-center justify-center">
+                        <i class="fas fa-sparkles text-white text-xs"></i>
+                    </div>
+                    <div class="space-y-2">
+                         <div class="h-2 w-24 bg-gray-700 rounded animate-pulse"></div>
+                         <div class="h-2 w-full bg-gray-700 rounded animate-pulse"></div>
+                         <div class="h-2 w-2/3 bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full bg-gray-900 p-4 border-t border-gray-800">
+            <div class="max-w-3xl mx-auto">
+                
+                <div id="file-preview" class="hidden mb-2">
+                    <div class="inline-flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
+                        <i class="fas fa-file-image text-blue-400"></i>
+                        <span id="file-name">image.png</span>
+                        <button onclick="clearFile()" class="hover:text-red-400 ml-1"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+
+                <div class="relative bg-gray-800 rounded-2xl border border-gray-700 focus-within:border-gray-500 focus-within:ring-1 focus-within:ring-gray-500 transition-all">
+                    
+                    <textarea id="user-input" rows="1" class="w-full bg-transparent text-white px-4 py-4 pr-12 outline-none resize-none max-h-48 overflow-y-auto placeholder-gray-500" placeholder="Message Universal AI..."></textarea>
+                    
+                    <div class="absolute bottom-2 left-2 flex gap-1">
+                         <input type="file" id="file-upload" class="hidden" onchange="handleFileSelect(this)">
+                         <button onclick="document.getElementById('file-upload').click()" class="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700 transition-colors" title="Attach file">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button class="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700 transition-colors" title="Generate Image">
+                            <i class="fas fa-image"></i>
+                        </button>
+                    </div>
+
+                    <button onclick="handleSend()" id="send-btn" class="absolute bottom-2 right-2 p-2 bg-white text-black rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+                <div class="text-center mt-2">
+                    <p class="text-xs text-gray-600">AI can make mistakes. Check important info.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-850">
+                <h3 class="font-bold text-lg">Settings</h3>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">OpenRouter API Key</label>
+                    <input type="password" id="api-key-input" class="w-full bg-gray-950 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="sk-or-...">
+                    <p class="text-xs text-gray-600 mt-1">Key is stored locally in your browser.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Model Name</label>
+                    <input type="text" id="model-input" class="w-full bg-gray-950 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" value="google/gemini-2.0-flash-exp:free">
+                    <p class="text-xs text-gray-600 mt-1">E.g., google/gemini-pro, openai/gpt-4, anthropic/claude-3-opus</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-800 bg-gray-850 flex justify-end">
+                <button onclick="saveSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let appState = {
+            apiKey: localStorage.getItem('or_api_key') || '',
+            model: localStorage.getItem('or_model') || 'google/gemini-2.0-flash-exp:free',
+            history: JSON.parse(localStorage.getItem('chat_history')) || [],
+            currentChatId: null,
+            currentMessages: [], // In-memory store for current conversation
+            isGenerating: false
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            input: document.getElementById('user-input'),
+            messagesArea: document.getElementById('messages-area'),
+            welcomeScreen: document.getElementById('welcome-screen'),
+            chatHistory: document.getElementById('chat-history'),
+            loading: document.getElementById('loading-indicator'),
+            filePreview: document.getElementById('file-preview'),
+            settingsModal: document.getElementById('settings-modal'),
+            apiKeyInput: document.getElementById('api-key-input'),
+            modelInput: document.getElementById('model-input'),
+            modelDisplay: document.getElementById('current-model-display'),
+            sidebar: document.getElementById('sidebar')
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHistory();
+            els.modelDisplay.innerText = appState.model;
+            
+            // Auto-resize textarea
+            els.input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+                if(this.value === '') this.style.height = 'auto';
+            });
+
+            // Enter to send (Shift+Enter for newline)
+            els.input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
+
+            // Check if key exists
+            if (!appState.apiKey) {
+                // setTimeout(() => openSettings(), 1000); // Friendly prompt
+            }
+        });
+
+        // --- Core Logic ---
+
+        function createNewChat() {
+            appState.currentChatId = Date.now().toString();
+            appState.currentMessages = [];
+            els.messagesArea.innerHTML = '';
+            els.messagesArea.classList.add('hidden');
+            els.welcomeScreen.classList.remove('hidden');
+            els.welcomeScreen.style.display = 'flex'; // Fix flex display toggle
+            
+            // Close sidebar on mobile
+            if(window.innerWidth < 768) els.sidebar.classList.remove('translate-x-0');
+        }
+
+        async function handleSend() {
+            const text = els.input.value.trim();
+            if (!text && !selectedFile) return;
+            if (appState.isGenerating) return;
+
+            if (!appState.apiKey) {
+                alert('Please set your OpenRouter API Key in Settings first.');
+                openSettings();
+                return;
+            }
+
+            // UI Updates
+            els.input.value = '';
+            els.input.style.height = 'auto';
+            els.welcomeScreen.classList.add('hidden');
+            els.welcomeScreen.style.display = 'none';
+            els.messagesArea.classList.remove('hidden');
+            
+            // Create new chat ID if null
+            if (!appState.currentChatId) {
+                appState.currentChatId = Date.now().toString();
+                saveChatToHistory(text.substring(0, 30) + "...");
+            }
+
+            // Add User Message
+            addMessageToUI('user', text, selectedFile);
+            appState.currentMessages.push({ 
+                role: 'user', 
+                content: selectedFile ? [
+                    { type: "text", text: text },
+                    { type: "image_url", image_url: { url: selectedFile.base64 } } // Simple base64 handling
+                ] : text
+            });
+
+            // Clear file
+            clearFile();
+
+            // API Call
+            appState.isGenerating = true;
+            els.loading.classList.remove('hidden');
+            scrollToBottom();
+
+            try {
+                // Prepare messages for OpenRouter (OpenAI compatible)
+                const apiMessages = appState.currentMessages.map(msg => {
+                    // Normalize content structure for API
+                    return msg; 
+                });
+
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${appState.apiKey}`,
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": window.location.href, // OpenRouter requirements
+                        "X-Title": "Universal AI Interface"
+                    },
+                    body: JSON.stringify({
+                        "model": appState.model,
+                        "messages": apiMessages
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || 'API Request Failed');
+                }
+
+                const data = await response.json();
+                const botContent = data.choices[0].message.content || "";
+
+                // Add Bot Message
+                addMessageToUI('assistant', botContent);
+                appState.currentMessages.push({ role: 'assistant', content: botContent });
+                
+                // Update LocalStorage History content
+                updateChatContentInHistory();
+
+            } catch (error) {
+                addMessageToUI('assistant', `**Error:** ${error.message}`);
+            } finally {
+                appState.isGenerating = false;
+                els.loading.classList.add('hidden');
+                scrollToBottom();
+            }
+        }
+
+        function addMessageToUI(role, content, fileObj = null) {
+            const div = document.createElement('div');
+            div.className = `flex gap-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = `w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs ${role === 'user' ? 'bg-gray-700 text-white' : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'}`;
+            avatar.innerText = role === 'user' ? 'U' : 'AI';
+
+            const bubbleContainer = document.createElement('div');
+            bubbleContainer.className = `max-w-[85%] space-y-2`;
+
+            // Handle Image display in chat
+            if (fileObj) {
+                const img = document.createElement('img');
+                img.src = fileObj.base64;
+                img.className = 'max-w-xs rounded-lg border border-gray-700 mb-2';
+                bubbleContainer.appendChild(img);
+            }
+
+            const bubble = document.createElement('div');
+            
+            if (role === 'user') {
+                bubble.className = 'bg-gray-800 text-white px-4 py-2.5 rounded-2xl rounded-tr-sm';
+                bubble.innerText = content; // User text usually plain
+            } else {
+                bubble.className = 'prose prose-invert prose-p:leading-relaxed max-w-none';
+                // Parse Markdown
+                const rawHtml = marked.parse(content);
+                // Sanitize
+                const cleanHtml = DOMPurify.sanitize(rawHtml);
+                bubble.innerHTML = cleanHtml;
+            }
+
+            bubbleContainer.appendChild(bubble);
+            div.appendChild(avatar);
+            div.appendChild(bubbleContainer);
+            
+            els.messagesArea.appendChild(div);
+
+            // Trigger highlight js
+            if(role === 'assistant') {
+                document.querySelectorAll('pre code').forEach((el) => {
+                    hljs.highlightElement(el);
+                });
+            }
+        }
+
+        // --- File Handling ---
+        let selectedFile = null;
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedFile = {
+                        name: file.name,
+                        base64: e.target.result,
+                        type: file.type
+                    };
+                    els.filePreview.classList.remove('hidden');
+                    document.getElementById('file-name').innerText = file.name;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            els.filePreview.classList.add('hidden');
+            document.getElementById('file-upload').value = '';
+        }
+
+        // --- History Management ---
+        function saveChatToHistory(title) {
+            const existing = appState.history.find(h => h.id === appState.currentChatId);
+            if (!existing) {
+                appState.history.unshift({
+                    id: appState.currentChatId,
+                    title: title,
+                    messages: appState.currentMessages, // Note: In a real app, optimize this storage
+                    timestamp: Date.now()
+                });
+            }
+            persistHistory();
+            renderHistory();
+        }
+
+        function updateChatContentInHistory() {
+            const index = appState.history.findIndex(h => h.id === appState.currentChatId);
+            if (index !== -1) {
+                appState.history[index].messages = appState.currentMessages;
+                persistHistory();
+            }
+        }
+
+        function persistHistory() {
+            localStorage.setItem('chat_history', JSON.stringify(appState.history));
+        }
+
+        function renderHistory() {
+            els.chatHistory.innerHTML = '';
+            appState.history.forEach(chat => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-800 text-sm text-gray-300 truncate transition-colors flex items-center gap-2 group';
+                btn.onclick = () => loadChat(chat.id);
+                
+                // Active state
+                if(chat.id === appState.currentChatId) btn.classList.add('bg-gray-800', 'text-white');
+
+                btn.innerHTML = `
+                    <i class="far fa-message text-gray-500 group-hover:text-white"></i>
+                    <span class="truncate flex-1">${chat.title}</span>
+                `;
+                els.chatHistory.appendChild(btn);
+            });
+        }
+
+        function loadChat(id) {
+            const chat = appState.history.find(h => h.id === id);
+            if (!chat) return;
+
+            appState.currentChatId = chat.id;
+            appState.currentMessages = chat.messages || [];
+            
+            // Clear UI
+            els.welcomeScreen.classList.add('hidden');
+            els.welcomeScreen.style.display = 'none';
+            els.messagesArea.classList.remove('hidden');
+            els.messagesArea.innerHTML = '';
+
+            // Rebuild UI
+            appState.currentMessages.forEach(msg => {
+                let content = msg.content;
+                let file = null;
+                
+                // Handle complex content (text + image) stored in history
+                if(Array.isArray(content)) {
+                    const textPart = content.find(c => c.type === 'text');
+                    const imgPart = content.find(c => c.type === 'image_url');
+                    content = textPart ? textPart.text : "";
+                    if(imgPart) file = { base64: imgPart.image_url.url };
+                }
+
+                addMessageToUI(msg.role, content, file);
+            });
+            
+            renderHistory(); // To update active styling
+            if(window.innerWidth < 768) els.sidebar.classList.remove('translate-x-0'); // Close mobile menu
+        }
+
+
+        // --- UI Utilities ---
+        function setInput(text) {
+            els.input.value = text;
+            els.input.focus();
+            handleSend();
+        }
+
+        function toggleSidebar() {
+            els.sidebar.classList.toggle('-translate-x-full');
+            els.sidebar.classList.toggle('translate-x-0');
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // --- Settings Modal ---
+        function openSettings() {
+            els.apiKeyInput.value = appState.apiKey;
+            els.modelInput.value = appState.model;
+            els.settingsModal.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            els.settingsModal.classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const key = els.apiKeyInput.value.trim();
+            const model = els.modelInput.value.trim();
+            
+            appState.apiKey = key;
+            appState.model = model;
+            
+            localStorage.setItem('or_api_key', key);
+            localStorage.setItem('or_model', model);
+            
+            els.modelDisplay.innerText = model;
+            closeSettings();
+        }
+    </script>
+</body>
+</html>
+            
